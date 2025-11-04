@@ -1,0 +1,44 @@
+name: Test Original Steps
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug API Response
+        run: |
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/topics \
+            -H "Accept: application/vnd.github.mercy-preview+json")
+          echo "API Response: $RESPONSE"
+
+      - name: Fetch Repository Topics
+        id: check_topics
+        run: |
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/topics \
+            -H "Accept: application/vnd.github.mercy-preview+json")
+          echo "API Response: $RESPONSE"
+
+          REPO_TOPICS=$(echo "$RESPONSE" | jq -r '.names | join(" ")')
+          echo "Repository Topics: $REPO_TOPICS"
+
+          TOPIC_STATUS="new"
+          if [[ "$REPO_TOPICS" == *"active"* ]]; then
+            TOPIC_STATUS="active"
+          elif [[ "$REPO_TOPICS" == *"maintenance"* ]]; then
+            TOPIC_STATUS="maintenance"
+          elif [[ "$REPO_TOPICS" == *"deprecated"* ]]; then
+            TOPIC_STATUS="deprecated"
+          elif [[ "$REPO_TOPICS" == *"decommissioned"* ]]; then
+            TOPIC_STATUS="decommissioned"
+          fi
+
+          echo "Determined Topic Status: $TOPIC_STATUS"
+          echo "topic_status=$TOPIC_STATUS" >> $GITHUB_OUTPUT
+
+      - name: Show output
+        run: echo "topic_status=${{ steps.check_topics.outputs.topic_status }}"
